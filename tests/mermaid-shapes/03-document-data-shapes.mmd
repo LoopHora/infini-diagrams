@@ -1,0 +1,13 @@
+flowchart LR
+  d1@{ shape: doc, label: "Single Document" }
+  d2@{ shape: docs, label: "Multi Document Archive" }
+  d3@{ shape: tag-doc, label: "Tagged Document" }
+  d4@{ shape: lin-doc, label: "Lined Document Form" }
+  d5@{ shape: flag, label: "Paper Tape Record" }
+  d6@{ shape: datastore, label: "Persistent DataStore" }
+  d7@{ shape: h-cyl, label: "Direct Access Drum" }
+  d8@{ shape: lin-cyl, label: "Lined Disk Platter" }
+  d9@{ shape: bow-rect, label: "Stored Collate Data" }
+  d10@{ shape: win-pane, label: "Internal Storage Pane" }
+  d1 --> d2 --> d3 --> d4 --> d5
+  d5 --> d6 --> d7 --> d8 --> d9 --> d10

@@ -1,0 +1,14 @@
+flowchart TD
+  s1@{ shape: cloud, label: "Cloud Backbone" }
+  s2@{ shape: bang, label: "Critical Bang!" }
+  s3@{ shape: bolt, label: "High-Speed Link" }
+  s4@{ shape: folder, label: "Directory /var/log" }
+  s5@{ shape: bucket, label: "S3 Object Bucket" }
+  s6@{ shape: console, label: "Terminal /dev/tty" }
+  s7@{ shape: browser, label: "Web Browser UI" }
+  s8@{ shape: person, label: "Verified User" }
+  s9@{ shape: notch-rect, label: "Index Card" }
+  s10@{ shape: hourglass, label: "Hourglass Queue" }
+  s11@{ shape: text, label: "Plain text callout" }
+  s1 --> s2 --> s3 --> s4 --> s5
+  s5 --> s6 --> s7 --> s8 --> s9 --> s10 --> s11

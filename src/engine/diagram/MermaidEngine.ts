@@ -114,9 +114,11 @@ export class MermaidEngine implements DiagramEngine {
       };
     } catch (err: any) {
       // Clean up any lingering error element mermaid might have appended to DOM
-      const errorEl = document.getElementById(renderId) || document.getElementById(`d${renderId}`);
-      if (errorEl) {
-        errorEl.remove();
+      if (typeof document !== 'undefined') {
+        const errorEl = document.getElementById(renderId) || document.getElementById(`d${renderId}`);
+        if (errorEl) {
+          errorEl.remove();
+        }
       }
 
       const parsed = this.parseErrorDetails(err);
@@ -165,13 +167,11 @@ export class MermaidEngine implements DiagramEngine {
   /**
    * Sanitizes SVG to ensure it contains no executable scripts or malicious attributes.
    */
-  private sanitizeSvg(svg: string): string {
+  public sanitizeSvg(svg: string): string {
     return svg
       .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-      .replace(/\s+on\w+="[^"]*"/gi, '')
-      .replace(/\s+on\w+='[^']*'/gi, '')
-      .replace(/href="javascript:[^"]*"/gi, 'href="#"')
-      .replace(/href='javascript:[^']*'/gi, 'href="#"');
+      .replace(/\s+on\w+=(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+      .replace(/href=["']?javascript:[^"'\s>]*["']?/gi, 'href="#"');
   }
 
   /**

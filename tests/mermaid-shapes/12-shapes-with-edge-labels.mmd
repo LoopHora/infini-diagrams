@@ -1,0 +1,11 @@
+flowchart LR
+  src@{ shape: rect, label: "Source Service" }
+  filter@{ shape: diam, label: "Validation Gate" }
+  dest1@{ shape: cyl, label: "Primary Store" }
+  dest2@{ shape: doc, label: "Dead Letter Queue" }
+  audit@{ shape: win-pane, label: "Audit Ledger" }
+
+  src -->|1. Submit Request| filter
+  filter -->|2a. Valid Payload| dest1
+  filter -->|2b. Malformed Syntax| dest2
+  dest1 -.->|3. Synchronize| audit

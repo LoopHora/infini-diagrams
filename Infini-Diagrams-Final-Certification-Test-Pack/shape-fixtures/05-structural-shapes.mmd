@@ -1,0 +1,14 @@
+flowchart TD
+  c1@{ shape: sm-circ, label: "Entry Point" }
+  c2@{ shape: fr-circ, label: "Termination Point" }
+  c3@{ shape: f-circ, label: "Junction Node" }
+  c4@{ shape: cross-circ, label: "Summary Cross" }
+  c5@{ shape: fork, label: "Sync Fork / Join" }
+  b1@{ shape: brace, label: "Left Bracket Annotation" }
+  b2@{ shape: brace-r, label: "Right Bracket Annotation" }
+  b3@{ shape: braces, label: "Dual Bracket Comment" }
+  c1 --> c5
+  c5 --> c3
+  c5 --> b1
+  c3 --> c4 --> c2
+  b1 --> b3 --> b2 --> c2

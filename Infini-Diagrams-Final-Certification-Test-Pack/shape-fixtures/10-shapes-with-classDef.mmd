@@ -1,0 +1,15 @@
+flowchart TD
+  classDef secure fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#f8fafc;
+  classDef storage fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#ecfdf5;
+  classDef alert fill:#7f1d1d,stroke:#f87171,stroke-width:2px,color:#fef2f2;
+
+  A:::secure@{ shape: cloud, label: "Public Edge" }
+  B:::secure@{ shape: rect, label: "Ingress Router" }
+  C:::storage@{ shape: cyl, label: "Encrypted DB" }
+  D:::alert@{ shape: bang, label: "Intrusion Alert" }
+  E:::alert@{ shape: doc, label: "Security Incident Log" }
+
+  A --> B
+  B --> C
+  B -.-> D
+  D --> E

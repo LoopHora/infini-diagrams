@@ -1,0 +1,43 @@
+flowchart TD
+  r@{ shape: rect, label: "Root Orchestrator" }
+  b1@{ shape: cloud, label: "Cloud Node A" }
+  b2@{ shape: folder, label: "Folder Node B" }
+  b3@{ shape: bucket, label: "Bucket Node C" }
+  b4@{ shape: console, label: "Console Node D" }
+  b5@{ shape: browser, label: "Browser Node E" }
+  b6@{ shape: lin-rect, label: "Process Node F" }
+  b7@{ shape: div-rect, label: "Process Node G" }
+  b8@{ shape: st-rect, label: "Process Node H" }
+  b9@{ shape: tag-rect, label: "Process Node I" }
+  b10@{ shape: sl-rect, label: "Process Node J" }
+  b11@{ shape: doc, label: "Doc Node K" }
+  b12@{ shape: docs, label: "Docs Node L" }
+  b13@{ shape: tag-doc, label: "TagDoc Node M" }
+  b14@{ shape: lin-doc, label: "LinDoc Node N" }
+  b15@{ shape: cyl, label: "DB Node O" }
+  b16@{ shape: h-cyl, label: "DAS Node P" }
+  b17@{ shape: lin-cyl, label: "Disk Node Q" }
+  b18@{ shape: datastore, label: "DataStore Node R" }
+  b19@{ shape: bow-rect, label: "Stored Node S" }
+  b20@{ shape: win-pane, label: "Pane Node T" }
+
+  r --> b1
+  r --> b2
+  r --> b3
+  r --> b4
+  r --> b5
+  b1 --> b6
+  b1 --> b7
+  b1 --> b8
+  b2 --> b9
+  b2 --> b10
+  b2 --> b11
+  b3 --> b12
+  b3 --> b13
+  b3 --> b14
+  b4 --> b15
+  b4 --> b16
+  b4 --> b17
+  b5 --> b18
+  b5 --> b19
+  b5 --> b20

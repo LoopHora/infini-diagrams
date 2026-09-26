@@ -30,3 +30,46 @@ if (typeof globalThis.localStorage === 'undefined') {
 if (typeof (globalThis as any).window === 'undefined') {
   (globalThis as any).window = globalThis;
 }
+
+(globalThis as any).DOMPurify = DOMPurify;
+(globalThis as any).window.DOMPurify = DOMPurify;
+
+// Polyfill SVGElement layout methods in JSDOM environment
+const polyfillBBox = () => ({
+  x: 0,
+  y: 0,
+  width: 100,
+  height: 40,
+  top: 0,
+  right: 100,
+  bottom: 40,
+  left: 0,
+});
+
+const polyfillCTM = () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 });
+
+if (typeof SVGElement !== 'undefined') {
+  if (!(SVGElement.prototype as any).getBBox) {
+    (SVGElement.prototype as any).getBBox = polyfillBBox;
+  }
+  if (!(SVGElement.prototype as any).getScreenCTM) {
+    (SVGElement.prototype as any).getScreenCTM = polyfillCTM;
+  }
+}
+
+if (typeof window !== 'undefined' && (window as any).SVGElement) {
+  if (!(window as any).SVGElement.prototype.getBBox) {
+    (window as any).SVGElement.prototype.getBBox = polyfillBBox;
+  }
+  if (!(window as any).SVGElement.prototype.getScreenCTM) {
+    (window as any).SVGElement.prototype.getScreenCTM = polyfillCTM;
+  }
+}
+
+// Polyfill btoa to handle UTF-8 strings in Node.js test environment
+globalThis.btoa = (str: string) => Buffer.from(str, 'utf-8').toString('base64');
+if (typeof window !== 'undefined') {
+  (window as any).btoa = globalThis.btoa;
+}
+
+

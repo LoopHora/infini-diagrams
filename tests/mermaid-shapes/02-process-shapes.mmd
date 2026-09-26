@@ -1,0 +1,17 @@
+flowchart TD
+  p1@{ shape: lin-rect, label: "Lined Process" }
+  p2@{ shape: div-rect, label: "Divided Process" }
+  p3@{ shape: st-rect, label: "Stacked Process" }
+  p4@{ shape: tag-rect, label: "Tagged Process" }
+  p5@{ shape: sl-rect, label: "Manual Input" }
+  p6@{ shape: trap-b, label: "Priority Bottom" }
+  p7@{ shape: trap-t, label: "Manual Top" }
+  p8@{ shape: lean-r, label: "Lean Right I/O" }
+  p9@{ shape: lean-l, label: "Lean Left I/O" }
+  p10@{ shape: delay, label: "Delay Step" }
+  p11@{ shape: curv-trap, label: "Display Screen" }
+  p12@{ shape: notch-pent, label: "Loop Limit" }
+  p13@{ shape: tri, label: "Extract Triangle" }
+  p14@{ shape: flip-tri, label: "Manual File Tri" }
+  p1 --> p2 --> p3 --> p4 --> p5 --> p6 --> p7
+  p7 --> p8 --> p9 --> p10 --> p11 --> p12 --> p13 --> p14

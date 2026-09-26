@@ -1,0 +1,25 @@
+flowchart TB
+  subgraph ClientZone [Client Boundary]
+    c_user@{ shape: person, label: "Customer" }
+    c_app@{ shape: browser, label: "SPA Frontend" }
+    c_user --> c_app
+  end
+
+  subgraph CloudVPC [Cloud VPC Security Group]
+    s_lb@{ shape: cloud, label: "Load Balancer" }
+    s_api@{ shape: fr-rect, label: "Backend API" }
+    s_db@{ shape: cyl, label: "Primary Database" }
+    s_cache@{ shape: datastore, label: "In-Memory Cache" }
+    s_lb --> s_api
+    s_api --> s_db
+    s_api --> s_cache
+  end
+
+  subgraph ArchiveCluster [Cold Storage Archive]
+    arc_tape@{ shape: flag, label: "Tape Stream" }
+    arc_docs@{ shape: docs, label: "Compliance Records" }
+    arc_tape --> arc_docs
+  end
+
+  c_app --> s_lb
+  s_db -.-> arc_tape
