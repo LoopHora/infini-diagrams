@@ -1,0 +1,5 @@
+{
+  "purpose": "Infini-Diagrams final production certification",
+  "fixture_count": 31,
+  "note": "Every possible Mermaid source string is infinite; this pack instead covers every current documented diagram family plus systematic stress dimensions."
+}

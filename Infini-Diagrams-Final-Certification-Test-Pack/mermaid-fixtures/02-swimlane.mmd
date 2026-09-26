@@ -1,0 +1,11 @@
+flowchart LR
+subgraph User
+A[Open App] --> B[Paste Code]
+end
+subgraph Engine
+B --> C[Parse]
+C --> D[Render]
+end
+subgraph Output
+D --> E[Export]
+end

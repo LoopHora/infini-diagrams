@@ -1,0 +1,12 @@
+erDiagram
+USER ||--o{ DOCUMENT : owns
+DOCUMENT ||--|{ DIAGRAM : contains
+DIAGRAM ||--o{ EXPORT : produces
+USER {
+string id
+string name
+}
+DOCUMENT {
+string id
+string title
+}

@@ -1,0 +1,8 @@
+stateDiagram-v2
+[*] --> Editing
+Editing --> Rendering
+Rendering --> Ready
+Rendering --> Error
+Error --> Editing
+Ready --> Exporting
+Exporting --> [*]

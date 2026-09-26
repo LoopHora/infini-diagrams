@@ -1,0 +1,5 @@
+architecture-beta
+group cloud(cloud)[Cloud]
+service app(server)[Studio] in cloud
+service store(database)[Local Store] in cloud
+app:R --> L:store

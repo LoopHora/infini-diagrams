@@ -1,0 +1,9 @@
+sequenceDiagram
+participant User
+participant App
+participant Engine
+User->>App: Paste diagram code
+App->>Engine: Render source
+Engine-->>App: SVG
+App-->>User: Preview
+User->>App: Export
