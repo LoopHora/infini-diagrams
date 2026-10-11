@@ -64,31 +64,51 @@ describe('Export System Suite', () => {
     expect(header).toBe('%PDF-');
   });
 
-  it('prepareSvgForRasterization fixes void tags, entities, dimensions, and namespaces', async () => {
+  it('convertForeignObjectsToSvgText replaces foreignObject with native SVG text', async () => {
+    const { convertForeignObjectsToSvgText } = await import('../engine/export/PngExporter');
+
+    const svgWithFo = `
+      <g class="label" transform="translate(100, 50)">
+        <foreignObject width="120" height="40" x="-60" y="-20">
+          <div style="color: rgb(200, 0, 0); font-size: 16px;">
+            <span>Line 1<br/>Line 2</span>
+          </div>
+        </foreignObject>
+      </g>
+    `;
+
+    const converted = convertForeignObjectsToSvgText(svgWithFo, '#ffffff');
+
+    // foreignObject must be completely eliminated
+    expect(converted.includes('<foreignObject')).toBe(false);
+    expect(converted.includes('</foreignObject>')).toBe(false);
+
+    // Native text and tspans must be generated
+    expect(converted.includes('<text')).toBe(true);
+    expect(converted.includes('<tspan')).toBe(true);
+    expect(converted.includes('Line 1')).toBe(true);
+    expect(converted.includes('Line 2')).toBe(true);
+    expect(converted.includes('fill: rgb(200, 0, 0)')).toBe(true);
+  });
+
+  it('prepareSvgForRasterization converts foreignObjects and sets clean XML attributes', async () => {
     const { prepareSvgForRasterization } = await import('../engine/export/PngExporter');
 
     const problematicSvg = `
       <svg id="mermaid-123" width="100%" style="max-width: 600px;" viewBox="0 0 600 400">
         <foreignObject width="100" height="100">
-          <div>Line 1<br>Line 2<hr><img src="test.png">AT&T &nbsp; &copy;</div>
+          <div>AT&T &nbsp; &copy;</div>
         </foreignObject>
       </svg>
     `;
 
     const prepared = prepareSvgForRasterization(problematicSvg, 600, 400);
 
-    // Verify unclosed void tags are closed
-    expect(prepared.includes('<br/>')).toBe(true);
-    expect(prepared.includes('<hr/>')).toBe(true);
-    expect(prepared.includes('<img src="test.png"/>')).toBe(true);
+    // foreignObject must be converted to pure SVG text to prevent canvas tainting
+    expect(prepared.includes('<foreignObject')).toBe(false);
+    expect(prepared.includes('<text')).toBe(true);
 
-    // Verify named entities replaced with numeric XML entities
-    expect(prepared.includes('&#160;')).toBe(true);
-    expect(prepared.includes('&#169;')).toBe(true);
-    expect(prepared.includes('&nbsp;')).toBe(false);
-    expect(prepared.includes('&copy;')).toBe(false);
-
-    // Verify stray ampersands escaped
+    // Verify text content is preserved and safely escaped
     expect(prepared.includes('AT&amp;T')).toBe(true);
 
     // Verify explicit pixel width and height on root svg
@@ -98,7 +118,6 @@ describe('Export System Suite', () => {
 
     // Verify XML namespaces present
     expect(prepared.includes('xmlns="http://www.w3.org/2000/svg"')).toBe(true);
-    expect(prepared.includes('xmlns:xhtml="http://www.w3.org/1999/xhtml"')).toBe(true);
   });
 
   it('PngExporter exports valid PNG blob from SVG', async () => {

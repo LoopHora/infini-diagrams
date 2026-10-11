@@ -8,7 +8,126 @@ const MAX_DIMENSION = 8192;
  * Closes void HTML tags, replaces named HTML entities with XML numeric entities,
  * escapes stray ampersands, injects required XML namespaces, and guarantees explicit pixel dimensions.
  */
-export function prepareSvgForRasterization(svg: string, width: number, height: number): string {
+/**
+ * Converts all <foreignObject> elements in an SVG string to native SVG <text> elements.
+ * Drawing an SVG containing <foreignObject> onto an HTMLCanvasElement marks the canvas as tainted
+ * in modern Chromium and Safari, causing canvas.toBlob() and toDataURL() to fail with:
+ * "SecurityError: Failed to execute 'toBlob' on 'HTMLCanvasElement': Tainted canvases may not be exported."
+ * Replacing <foreignObject> with pure SVG <text> elements preserves layout and text while guaranteeing
+ * origin-clean canvas rasterization without taint.
+ */
+export function convertForeignObjectsToSvgText(
+  svg: string,
+  defaultTextColor: string = '#e6edf3'
+): string {
+  const foRegex = /<foreignObject\b([^>]*)>([\s\S]*?)<\/foreignObject>/gi;
+
+  return svg.replace(foRegex, (_match, attrsString, innerContent) => {
+    // 1. Extract coordinates and dimensions from attributes
+    const xMatch = attrsString.match(/\bx=["']?(-?[0-9.]+)/i);
+    const yMatch = attrsString.match(/\by=["']?(-?[0-9.]+)/i);
+    const widthMatch = attrsString.match(/\bwidth=["']?([0-9.]+)/i);
+    const heightMatch = attrsString.match(/\bheight=["']?([0-9.]+)/i);
+
+    const x = xMatch ? parseFloat(xMatch[1]) : 0;
+    const y = yMatch ? parseFloat(yMatch[1]) : 0;
+    const width = widthMatch ? parseFloat(widthMatch[1]) : 0;
+    const height = heightMatch ? parseFloat(heightMatch[1]) : 0;
+
+    // Calculate center
+    const cx = Math.round((x + width / 2) * 100) / 100;
+    const cy = Math.round((y + height / 2) * 100) / 100;
+
+    // 2. Extract styles from inner div / span or foreignObject
+    let color = '';
+    let fontSize = '';
+    let fontWeight = '';
+
+    const styleRegex = /style=["']([^"']*)["']/gi;
+    let sm: RegExpExecArray | null;
+    while ((sm = styleRegex.exec(innerContent)) !== null) {
+      const styles = sm[1];
+      const colorVal = styles.match(/color\s*:\s*([^;]+)/i);
+      const fontVal = styles.match(/font-size\s*:\s*([^;]+)/i);
+      const weightVal = styles.match(/font-weight\s*:\s*([^;]+)/i);
+
+      if (colorVal && !color) color = colorVal[1].trim();
+      if (fontVal && !fontSize) fontSize = fontVal[1].trim();
+      if (weightVal && !fontWeight) fontWeight = weightVal[1].trim();
+    }
+
+    // 3. Extract text lines from innerContent
+    // Normalize breaks: <br>, <br/>, <br />, </div>, </p> into newlines
+    const textOnly = innerContent
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/div>/gi, '\n')
+      .replace(/<\/p>/gi, '\n')
+      .replace(/<\/h[1-6]>/gi, '\n')
+      .replace(/<\/li>/gi, '\n')
+      .replace(/<[^>]+>/g, '') // Strip remaining HTML tags
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&#160;/gi, ' ');
+
+    // Split lines and trim
+    const rawLines = textOnly
+      .split('\n')
+      .map((line: string) => line.trim())
+      .filter((line: string) => line.length > 0);
+
+    if (rawLines.length === 0) {
+      return ''; // Empty foreignObject
+    }
+
+    // Determine font styles
+    const effectiveColor = color || defaultTextColor;
+    const effectiveFontSize = fontSize || '14px';
+    const effectiveFontWeight = fontWeight || 'normal';
+
+    const styleAttr = `style="font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: ${effectiveFontSize}; font-weight: ${effectiveFontWeight}; fill: ${effectiveColor};"`;
+
+    // XML escape helper - only escapes ampersands that are not already valid XML entities
+    const escapeXml = (str: string) =>
+      str
+        .replace(/&(?!(?:amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+
+    if (rawLines.length === 1) {
+      return `<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" ${styleAttr}>${escapeXml(rawLines[0])}</text>`;
+    }
+
+    // Multi-line text with tspans
+    const parsedFontSize = parseFloat(effectiveFontSize) || 14;
+    const lineHeight = parsedFontSize * 1.25;
+    const totalSpan = (rawLines.length - 1) * lineHeight;
+    const startY = Math.round((cy - totalSpan / 2) * 100) / 100;
+
+    const tspans = rawLines
+      .map((line: string, idx: number) => {
+        const dy = idx === 0 ? 0 : lineHeight;
+        return `<tspan x="${cx}" dy="${dy}">${escapeXml(line)}</tspan>`;
+      })
+      .join('');
+
+    return `<text x="${cx}" y="${startY}" text-anchor="middle" dominant-baseline="central" ${styleAttr}>${tspans}</text>`;
+  });
+}
+
+/**
+ * Prepares and sanitizes SVG markup for strict XML image decoders used by HTMLImageElement.
+ * Closes void HTML tags, replaces named HTML entities with XML numeric entities,
+ * escapes stray ampersands, strips external network resources that taint canvas,
+ * converts all <foreignObject> elements to native <text> elements (preventing canvas taint),
+ * injects required XML namespaces, and guarantees explicit pixel dimensions.
+ */
+export function prepareSvgForRasterization(
+  svg: string,
+  width: number,
+  height: number,
+  options?: ExportOptions
+): string {
   if (!svg || !svg.trim()) {
     throw new Error('SVG content is empty.');
   }
@@ -20,8 +139,12 @@ export function prepareSvgForRasterization(svg: string, width: number, height: n
   cleaned = cleaned.replace(/<!DOCTYPE[^>]*>/gi, '');
   cleaned = cleaned.trim();
 
-  // 2. Fix unclosed void HTML tags inside foreignObject/HTML labels
-  // Common void elements: <br>, <hr>, <img>, <input>
+  // 2. Strip external fonts, stylesheets, and remote images that trigger cross-origin canvas taint
+  cleaned = cleaned.replace(/@import\s+url\([^)]+\)\s*;?/gi, '');
+  cleaned = cleaned.replace(/<link\b[^>]*>/gi, '');
+  cleaned = cleaned.replace(/<image\b[^>]*(?:href|xlink:href)=["']https?:\/\/[^"']*["'][^>]*>/gi, '');
+
+  // 3. Fix unclosed void HTML tags inside foreignObject/HTML labels
   cleaned = cleaned.replace(/<br(?:\s*|\s+[^>]*?)>/gi, (match) => {
     return match.endsWith('/>') ? match : match.replace(/>$/, '/>');
   });
@@ -35,8 +158,7 @@ export function prepareSvgForRasterization(svg: string, width: number, height: n
     return match.endsWith('/>') ? match : match.replace(/>$/, '/>');
   });
 
-  // 3. Convert named HTML entities to numeric XML character entities
-  // XML only natively supports: &amp; &lt; &gt; &quot; &apos;
+  // 4. Convert named HTML entities to numeric XML character entities
   const entityMap: Record<string, string> = {
     '&nbsp;': '&#160;',
     '&copy;': '&#169;',
@@ -71,13 +193,15 @@ export function prepareSvgForRasterization(svg: string, width: number, height: n
     cleaned = cleaned.split(entity).join(replacement);
   }
 
-  // 4. Escape unescaped ampersands: & that is not part of a valid XML entity
+  // 5. Escape unescaped ampersands: & that is not part of a valid XML entity
   cleaned = cleaned.replace(/&(?!(?:amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/g, '&amp;');
 
-  // 5. Ensure foreignObject children have xhtml namespace if missing
-  cleaned = cleaned.replace(/<foreignObject\b([^>]*)>(\s*)<div(?!\s+xmlns)/gi, '<foreignObject$1>$2<div xmlns="http://www.w3.org/1999/xhtml"');
+  // 6. CRITICAL: Convert all <foreignObject> to native SVG <text> elements!
+  // This eliminates the Chromium/Safari security taint on HTMLCanvasElement.
+  const defaultTextColor = options?.backgroundType === 'white' ? '#1f2328' : '#e6edf3';
+  cleaned = convertForeignObjectsToSvgText(cleaned, defaultTextColor);
 
-  // 6. Ensure root <svg> element has proper attributes and explicit pixel dimensions
+  // 7. Ensure root <svg> element has proper attributes and explicit pixel dimensions
   const svgTagMatch = cleaned.match(/<svg\b([^>]*)>/i);
   if (svgTagMatch) {
     let attrs = svgTagMatch[1];
@@ -94,9 +218,6 @@ export function prepareSvgForRasterization(svg: string, width: number, height: n
     if (!attrs.includes('xmlns:xlink="http://www.w3.org/1999/xlink"')) {
       attrs += ' xmlns:xlink="http://www.w3.org/1999/xlink"';
     }
-    if (!attrs.includes('xmlns:xhtml="http://www.w3.org/1999/xhtml"')) {
-      attrs += ' xmlns:xhtml="http://www.w3.org/1999/xhtml"';
-    }
 
     // Ensure viewBox is present; if absent, synthesize from width/height
     if (!/viewBox=["'][^"']*["']/i.test(attrs)) {
@@ -109,7 +230,7 @@ export function prepareSvgForRasterization(svg: string, width: number, height: n
     cleaned = cleaned.replace(svgTagMatch[0], `<svg ${attrs.trim()}>`);
   } else {
     // If no <svg> tag found, wrap in one
-    cleaned = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xhtml="http://www.w3.org/1999/xhtml" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${cleaned}</svg>`;
+    cleaned = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${cleaned}</svg>`;
   }
 
   return cleaned;
@@ -261,7 +382,7 @@ export class PngExporter implements Exporter {
     }
 
     // Prepare SVG markup with standard namespaces, tag closure, entity escaping, and dimensions
-    const processedSvg = prepareSvgForRasterization(svg, w, h);
+    const processedSvg = prepareSvgForRasterization(svg, w, h, options);
 
     // Load SVG into Image element via multi-tier fallback chain
     const img = await loadSvgToImage(processedSvg);

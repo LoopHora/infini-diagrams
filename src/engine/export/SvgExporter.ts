@@ -1,5 +1,6 @@
 import { Exporter, ExportInput, exporters } from './Exporter';
 import { ExportFormat, ExportOptions } from '../../types';
+import { convertForeignObjectsToSvgText } from './PngExporter';
 
 export class SvgExporter implements Exporter {
   format: ExportFormat = 'svg';
@@ -60,6 +61,10 @@ export class SvgExporter implements Exporter {
 
     // Escape stray unescaped ampersands
     processedSvg = processedSvg.replace(/&(?!(?:amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/g, '&amp;');
+
+    // Convert foreignObject to native SVG text for universal vector editor (Figma, Illustrator) compatibility
+    const defaultTextColor = options.backgroundType === 'white' ? '#1f2328' : '#e6edf3';
+    processedSvg = convertForeignObjectsToSvgText(processedSvg, defaultTextColor);
 
     // Determine background color
     let bgColor: string | null = null;
