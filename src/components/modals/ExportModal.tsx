@@ -10,6 +10,7 @@ import {
   Code,
   ShieldCheck,
   CheckCircle2,
+  AlertCircle,
   Sparkles
 } from 'lucide-react';
 import { ExportFormat, PngScale, PdfPageSize, PdfOrientation, PresentationSettings } from '../../types';
@@ -52,12 +53,14 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   const [isExporting, setIsExporting] = useState(false);
   const [copied, setCopied] = useState(false);
   const [downloadSuccessName, setDownloadSuccessName] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const previewFilename = FilenameService.sanitizeFilename(title, format);
 
   const handleDownload = async () => {
     setIsExporting(true);
     setDownloadSuccessName(null);
+    setExportError(null);
 
     try {
       const input = { svg, source, width, height };
@@ -86,47 +89,58 @@ export const ExportModal: React.FC<ExportModalProps> = ({
       setDownloadSuccessName(downloadedName);
       setTimeout(() => setDownloadSuccessName(null), 4000);
     } catch (err: any) {
-      alert(`Export error: ${err?.message || 'Failed to export diagram'}`);
+      setExportError(err?.message || 'Failed to export diagram');
     } finally {
       setIsExporting(false);
     }
   };
 
   const handleCopy = async () => {
-    if (format === 'svg') {
-      const input = { svg, source, width, height };
-      const blob = await svgExporter.export(input, {
-        format: 'svg',
-        title,
-        backgroundType: presentation.backgroundType,
-        customBackgroundColor: presentation.customBackgroundColor,
-      });
-      const text = await blob.text();
-      const success = await ClipboardService.copyText(text);
-      if (success) {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+    setExportError(null);
+    try {
+      if (format === 'svg') {
+        const input = { svg, source, width, height };
+        const blob = await svgExporter.export(input, {
+          format: 'svg',
+          title,
+          backgroundType: presentation.backgroundType,
+          customBackgroundColor: presentation.customBackgroundColor,
+        });
+        const text = await blob.text();
+        const success = await ClipboardService.copyText(text);
+        if (success) {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        } else {
+          setExportError('Clipboard copy was blocked by browser permissions.');
+        }
+      } else if (format === 'png') {
+        const input = { svg, source, width, height };
+        const blob = await pngExporter.export(input, {
+          format: 'png',
+          title,
+          scale,
+          backgroundType: presentation.backgroundType,
+          customBackgroundColor: presentation.customBackgroundColor,
+        });
+        const success = await ClipboardService.copyImageBlob(blob);
+        if (success) {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        } else {
+          setExportError('Clipboard image copy not supported in this browser context.');
+        }
+      } else if (format === 'mmd') {
+        const success = await ClipboardService.copyText(source);
+        if (success) {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        } else {
+          setExportError('Clipboard copy was blocked by browser permissions.');
+        }
       }
-    } else if (format === 'png') {
-      const input = { svg, source, width, height };
-      const blob = await pngExporter.export(input, {
-        format: 'png',
-        title,
-        scale,
-        backgroundType: presentation.backgroundType,
-        customBackgroundColor: presentation.customBackgroundColor,
-      });
-      const success = await ClipboardService.copyImageBlob(blob);
-      if (success) {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      }
-    } else if (format === 'mmd') {
-      const success = await ClipboardService.copyText(source);
-      if (success) {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      }
+    } catch (err: any) {
+      setExportError(err?.message || 'Failed to copy to clipboard.');
     }
   };
 
@@ -196,7 +210,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 return (
                   <button
                     key={item.id}
-                    onClick={() => setFormat(item.id as ExportFormat)}
+                    onClick={() => {
+                      setFormat(item.id as ExportFormat);
+                      setExportError(null);
+                    }}
                     style={{
                       display: 'flex',
                       flexDirection: 'column',
@@ -321,6 +338,27 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               <div>
                 <strong>Downloaded successfully!</strong>
                 <p style={{ fontSize: '0.75rem', opacity: 0.9 }}>File: {downloadSuccessName}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Error Banner */}
+          {exportError && (
+            <div style={{
+              backgroundColor: 'var(--badge-red-bg)',
+              border: '1px solid var(--badge-red-border)',
+              borderRadius: 'var(--radius-md)',
+              padding: '10px 14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              fontSize: '0.8125rem',
+              color: 'var(--badge-red-text)',
+            }}>
+              <AlertCircle style={{ width: 18, height: 18, flexShrink: 0 }} />
+              <div>
+                <strong>Export Failed</strong>
+                <p style={{ fontSize: '0.75rem', opacity: 0.9 }}>{exportError}</p>
               </div>
             </div>
           )}

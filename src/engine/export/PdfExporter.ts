@@ -1,6 +1,6 @@
 import { PDFDocument, rgb } from 'pdf-lib';
 import { Exporter, ExportInput, exporters } from './Exporter';
-import { ExportFormat, ExportOptions } from '../../types';
+import { ExportFormat, ExportOptions, PngScale } from '../../types';
 import { pngExporter } from './PngExporter';
 
 // Standard paper dimensions in points (72 points per inch)
@@ -33,10 +33,16 @@ export class PdfExporter implements Exporter {
     const orientation = options.pdfOrientation || 'landscape';
     const margin = 24; // 24pt margin
 
-    // Generate high-resolution 3x PNG raster for crisp embedding inside PDF
+    const baseW = Math.max(100, input.width || 800);
+    const baseH = Math.max(100, input.height || 600);
+    const maxDim = Math.max(baseW, baseH);
+    // Dynamically calculate scale (1 | 2 | 3), bounded so target dimension <= 4096px
+    const scale: PngScale = Math.max(1, Math.min(3, Math.floor(4096 / maxDim) || 2)) as PngScale;
+
+    // Generate high-resolution PNG raster for crisp embedding inside PDF
     const pngBlob = await pngExporter.export(input, {
       ...options,
-      scale: 3, // 3x scale for ultra-crisp PDF rendering
+      scale,
       backgroundType: options.backgroundType === 'transparent' ? 'white' : options.backgroundType,
     });
 
@@ -54,9 +60,6 @@ export class PdfExporter implements Exporter {
     let drawHeight = 0;
     let drawX = 0;
     let drawY = 0;
-
-    const baseW = Math.max(100, input.width || 800);
-    const baseH = Math.max(100, input.height || 600);
 
     if (pdfPageSize === 'fit') {
       // Fit mode: page fits diagram dimensions exactly with margin while preserving aspect ratio
